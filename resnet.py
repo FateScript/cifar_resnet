@@ -143,7 +143,8 @@ class ResnetModel(object):
             lr = self.get_learningrate(i)
             loss = 0.0
             acc = 0.0
-            for j in range(num_data//batch_size + 1):
+            train_iter = num_data//batch_size if num_data%batch_size == 0 else num_data//batch_size
+            for j in range(train_iter):
                 fd = self.fill_feed_dict_with_batch(x_train, y_train, lr, batch_size=batch_size)
                 _, temp_loss, temp_acc = self.sess.run([self.train_op, self.total_loss, self.acc], feed_dict=fd)
                 loss += temp_loss
@@ -157,7 +158,8 @@ class ResnetModel(object):
             print("train_acc: {}".format(avg_acc))
             test_acc = 0.0
             test_loss = 0.0
-            for j in range(num_test//batch_size + 1):
+            test_iter = num_test//batch_size if num_test%batch_size else num_test//batch_size+1
+            for j in range(test_iter):
                 fd = self.fill_feed_dict_with_batch(x_test, y_test, lr, augment=False, is_training=False, batch_size=batch_size)
                 temp_loss, temp_acc = self.sess.run([self.total_loss, self.acc], feed_dict=fd)
                 test_acc += temp_acc
@@ -176,7 +178,7 @@ class ResnetModel(object):
 
             if i%20 == 0 or i == epoch-1:
                 self.save_model(i)
-   
+
 
     def inference(self, data, labels, size=1):
         fd = self.fill_feed_dict_with_batch(data, labels, lr=0, augment=True, is_training=False, batch_size=size)
