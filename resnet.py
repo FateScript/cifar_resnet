@@ -143,7 +143,7 @@ class ResnetModel(object):
             lr = self.get_learningrate(i)
             loss = 0.0
             acc = 0.0
-            train_iter = num_data//batch_size if num_data%batch_size == 0 else num_data//batch_size
+            train_iter = num_data//batch_size if num_data%batch_size == 0 else num_data//batch_size+1
             for j in range(train_iter):
                 fd = self.fill_feed_dict_with_batch(x_train, y_train, lr, batch_size=batch_size)
                 _, temp_loss, temp_acc = self.sess.run([self.train_op, self.total_loss, self.acc], feed_dict=fd)
