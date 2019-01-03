@@ -108,7 +108,33 @@ def prepare_train_data(padding_size, shuffle=True):
     pad_width = ( (0,0), (padding_size, padding_size), (padding_size, padding_size), (0,0) )
     data = np.pad(data, pad_width=pad_width, mode='constant', constant_values=0)
     return data, label
-   
+
+
+def prepare_drop_train_data(padding_size, drop_idx, shuffle=True):
+    path_list = []
+    for i in range(1, num_train_batch+1):
+        path_list.append(full_data_dir+str(i))
+    data, label = read_in_all_images(path_list, shuffle, is_random_label=train_random_label)
+    pad_width = ( (0,0), (padding_size, padding_size), (padding_size, padding_size), (0,0) )
+    data = np.pad(data, pad_width=pad_width, mode='constant', constant_values=0)
+    keep_idx = np.setdiff1d(np.arange(len(label)), drop_idx)
+    return data[keep_idx], label[keep_idx]
+
+
+def prepare_mislabel_train_data(padding_size, num_mislabel, shuffle=False):
+    path_list = []
+    idx = np.random.choice(np.arange(0, 50000), num_mislabel)
+    mislabel_idx = np.array(list(set(idx)))
+    mislabel_idx.sort()
+    for i in range(1, num_train_batch+1):
+        path_list.append(full_data_dir+str(i))
+    data, label = read_in_all_images(path_list, shuffle, is_random_label=train_random_label)
+    pad_width = ( (0,0), (padding_size, padding_size), (padding_size, padding_size), (0,0) )
+    data = np.pad(data, pad_width=pad_width, mode='constant', constant_values=0)
+    add = np.random.randint(1, 10, len(mislabel_idx))
+    label[mislabel_idx] = (label[mislabel_idx] + add) % 10
+    return data, label, mislabel_idx
+
 
 def read_validation_data(shuffle=True):
     validation_array, validation_labels = read_in_all_images([validation_dir], shuffle, 
@@ -117,8 +143,14 @@ def read_validation_data(shuffle=True):
     return validation_array, validation_labels
 
 '''
-if __name__ == "__main__":
-    data, labels = prepare_train_data(0)
-    data = whitening_image(data)
-    embed(header="test_cifar")
+def read_validation_data(shuffle=True):
+    validation_array, validation_labels = read_in_all_images([validation_dir], shuffle, 
+            is_random_label=validation_random_label)
+    validation_array = whitening_image(validation_array) 
+    return validation_array, validation_labels
+
 '''
+if __name__ == "__main__":
+    data, labels, idx = prepare_mislabel_train_data(0, num_mislabel=504)
+    #d,l = prepare_train_data(0, False)
+    embed()

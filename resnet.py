@@ -11,13 +11,16 @@ image_height = 32
 image_depth = 3
 num_classes = 10
 
+drop_data_dir = "/unsullied/sharefs/wangfeng02/logs/cifar_resnet/div_by_label/drop_20000_25000.npz"
+boardWrite_dir = "./graph/all_net/mislabel/baseline_approx"
+load_model_dir = "./model/all_net/mislabel/baseline_approx"
 #embed(header="dataset check")
 
 def scalar_writer(writer, name, value, step):
     v = tf.Summary.Value(tag=name, simple_value=value)
     s = tf.Summary(value=[v])
     writer.add_summary(s, step)
-    return
+    return 
 
 
 class ResnetModel(object):
@@ -26,7 +29,7 @@ class ResnetModel(object):
         self.index = 0
         self.input_placeholder, self.label_placeholder, self.is_training, self.lr = self.input_placeholder()
         #self.logits = self.buildResNet(self.input_placeholder, FLAGS.num_blocks, self.is_training)
-        self.logits = self.infer(self.input_placeholder, FLAGS.num_blocks, self.is_training, load)
+        self.logits = self.infer(self.input_placeholder, FLAGS.num_blocks, self.is_training)
         self.loss, self.total_loss = self.loss(self.logits, self.label_placeholder)
         self.acc = self.accuracy_op(self.logits, self.label_placeholder)
         self.train_op = self.train_op(self.lr)
@@ -35,7 +38,8 @@ class ResnetModel(object):
         self.sess = tf.Session()
         self.sess.run(init_op)
         self.writer = self.boardWrite()
-        #self.load_model()
+        if load:
+            self.load_model(load_model_dir + "99")
         if train:
             self.train()
         if save:
@@ -111,12 +115,12 @@ class ResnetModel(object):
         #tf.summary.scalar('loss', self.loss)
         #tf.summary.scalar('accuracy', self.acc)
         #self.merged = tf.summary.merge_all()
-        return tf.summary.FileWriter("./graph/cifar_resnet", self.sess.graph)
+        return tf.summary.FileWriter(boardWrite_dir, self.sess.graph)
 
 
     def save_model(self, epoch):
         saver = tf.train.Saver()
-        path = "./model/epoch-" + str(epoch)
+        path = load_model_dir + str(epoch)
         save_path = saver.save(self.sess, path)
         return saver
 
@@ -143,7 +147,8 @@ class ResnetModel(object):
             lr = self.get_learningrate(i)
             loss = 0.0
             acc = 0.0
-            train_iter = num_data//batch_size if num_data%batch_size == 0 else num_data//batch_size+1
+            train_iter = num_data//batch_size if num_data%batch_size == 0 else num_data // batch_size+1
+            print("trian_iter : {}".format(train_iter))
             for j in range(train_iter):
                 fd = self.fill_feed_dict_with_batch(x_train, y_train, lr, batch_size=batch_size)
                 _, temp_loss, temp_acc = self.sess.run([self.train_op, self.total_loss, self.acc], feed_dict=fd)
@@ -158,7 +163,7 @@ class ResnetModel(object):
             print("train_acc: {}".format(avg_acc))
             test_acc = 0.0
             test_loss = 0.0
-            test_iter = num_test//batch_size if num_test%batch_size else num_test//batch_size+1
+            test_iter = num_test//batch_size if num_test%batch_size==0 else num_test//batch_size+1
             for j in range(test_iter):
                 fd = self.fill_feed_dict_with_batch(x_test, y_test, lr, augment=False, is_training=False, batch_size=batch_size)
                 temp_loss, temp_acc = self.sess.run([self.total_loss, self.acc], feed_dict=fd)
@@ -178,7 +183,7 @@ class ResnetModel(object):
 
             if i%20 == 0 or i == epoch-1:
                 self.save_model(i)
-
+   
 
     def inference(self, data, labels, size=1):
         fd = self.fill_feed_dict_with_batch(data, labels, lr=0, augment=True, is_training=False, batch_size=size)
@@ -213,12 +218,19 @@ class ResnetModel(object):
 
 
 if __name__ == "__main__":
-    x_train, y_train = cifar.prepare_train_data(padding_size=2)
-    x_test, y_test = cifar.read_validation_data()
+    #x_train, y_train = cifar.prepare_train_data(padding_size=2)
+    #x_train, y_train = cifar.prepare_train_data(padding_size=2)
+    #drop_idx = np.load(drop_data_dir)['idx']
+    #drop_idx = np.random.randint(0, 50000, 9700)
+    #drop_idx = np.array( list(set(drop_idx)) )
+
+    #x_train, y_train = cifar.prepare_drop_train_data(padding_size=2, drop_idx=drop_idx, shuffle=False)
+    x_train, y_train, mislabel_idx = cifar.prepare_mislabel_train_data(padding_size=2, num_mislabel=504)
+    np.savez("./mislabel_data", y_train = y_train, idx = mislabel_idx)
+    embed()
+    x_test, y_test = cifar.read_validation_data(shuffle=True)
     num_data = len(y_train)
     num_test = len(y_test)
-    #mnist = tf.keras.datasets.mnist
-    #(x_train, y_train),(x_test, y_test) = mnist.load_data()
     y_train = tf.keras.utils.to_categorical(y_train, num_classes)
     y_test = tf.keras.utils.to_categorical(y_test, num_classes)
 
